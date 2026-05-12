@@ -59,6 +59,9 @@ class Agent:
         self._memory_context = []
         self._started = True
 
+        if hasattr(self.strategy, "reset"):
+            self.strategy.reset()
+
         if isinstance(input, str):
             input_text = input
             user_msg = Message(role="user", content=[TextContent(text=input)])
@@ -106,6 +109,11 @@ class Agent:
             step_result = await self.step()
             steps.append(step_result)
 
+            total_usage.input_tokens += step_result.usage.input_tokens
+            total_usage.output_tokens += step_result.usage.output_tokens
+            total_usage.cache_read_tokens += step_result.usage.cache_read_tokens
+            total_usage.cache_write_tokens += step_result.usage.cache_write_tokens
+
             if isinstance(step_result.action, Finish):
                 output = step_result.action.output
                 break
@@ -148,4 +156,5 @@ class Agent:
         new._messages = []
         new._memory_context = []
         new._started = False
+        new.strategy = copy.deepcopy(self.strategy)
         return new

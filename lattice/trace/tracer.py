@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextvars
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -29,16 +30,24 @@ class Span:
 
 
 class Tracer:
+    _active_span_var: contextvars.ContextVar[Span | None] = contextvars.ContextVar(
+        "active_span", default=None
+    )
+
     def __init__(self) -> None:
         self._spans: list[Span] = []
-        self._active_span: Span | None = None
+
+    @property
+    def _active_span(self) -> Span | None:
+        return self._active_span_var.get()
 
     def start_span(self, name: str, attributes: dict[str, Any] | None = None) -> Span:
-        trace_id = self._active_span.trace_id if self._active_span else uuid.uuid4().hex
+        active = self._active_span
+        trace_id = active.trace_id if active else uuid.uuid4().hex
         span = Span(
             trace_id=trace_id,
             span_id=uuid.uuid4().hex,
-            parent_id=self._active_span.span_id if self._active_span else None,
+            parent_id=active.span_id if active else None,
             name=name,
             start_time=time.time(),
             attributes=attributes or {},
@@ -52,8 +61,7 @@ class Tracer:
     @asynccontextmanager
     async def span(self, name: str, **attrs: Any) -> AsyncIterator[Span]:
         span = self.start_span(name, attributes=attrs)
-        previous = self._active_span
-        self._active_span = span
+        token = self._active_span_var.set(span)
         try:
             yield span
         except Exception as e:
@@ -65,7 +73,7 @@ class Tracer:
             ))
             raise
         finally:
-            self._active_span = previous
+            self._active_span_var.reset(token)
             self.end_span(span)
 
     def export(self, format: Literal["json", "otlp"] = "json") -> str:
@@ -79,7 +87,6 @@ class Tracer:
 
     def clear(self) -> None:
         self._spans.clear()
-        self._active_span = None
 
 
 tracer = Tracer()

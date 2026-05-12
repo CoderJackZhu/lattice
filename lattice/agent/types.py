@@ -51,6 +51,7 @@ Action = Union[Continue, Finish]
 class StepResult:
     messages: list[Message] = field(default_factory=list)
     action: Action = field(default_factory=Continue)
+    usage: Usage = field(default_factory=Usage)
 
 
 @dataclass

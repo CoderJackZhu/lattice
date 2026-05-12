@@ -41,12 +41,36 @@ class ProviderRegistry:
     def __init__(self) -> None:
         self._factories: dict[str, Callable[..., LLMProvider]] = {}
         self._instances: dict[str, LLMProvider] = {}
+        self._config_loaded = False
+        self._provider_configs: dict[str, dict[str, str]] = {}
+
+    def _ensure_config(self) -> None:
+        if self._config_loaded:
+            return
+        self._config_loaded = True
+        try:
+            from lattice.llm.config import load_config
+
+            config = load_config()
+            for name, pconf in config.providers.items():
+                kwargs: dict[str, str] = {}
+                if pconf.api_key:
+                    kwargs["api_key"] = pconf.api_key
+                if pconf.base_url:
+                    kwargs["base_url"] = pconf.base_url
+                if kwargs:
+                    self._provider_configs[name] = kwargs
+        except Exception:
+            pass
 
     def register(self, name: str, factory: Callable[..., LLMProvider]) -> None:
         self._factories[name] = factory
 
     def get(self, name: str, **kwargs: Any) -> LLMProvider:
-        cache_key = name if not kwargs else f"{name}:{hash(tuple(sorted(kwargs.items())))}"
+        self._ensure_config()
+        if not kwargs and name in self._provider_configs:
+            kwargs = self._provider_configs[name]
+        cache_key = name if not kwargs else f"{name}:{hash(frozenset(kwargs.items()))}"
         if cache_key not in self._instances:
             if name not in self._factories:
                 raise ValueError(f"Unknown provider '{name}'. Available: {list(self._factories)}")

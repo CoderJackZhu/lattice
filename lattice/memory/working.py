@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import time
 
 from lattice.memory.base import MemoryItem
@@ -26,15 +27,16 @@ class WorkingMemory:
         scored: list[tuple[float, MemoryItem]] = []
         for item in self._items:
             content_lower = item.content.lower()
-            score = sum(1 for kw in keywords if kw in content_lower)
-            if score > 0:
-                scored.append((score, item))
+            match_count = sum(1 for kw in keywords if kw in content_lower)
+            if match_count > 0:
+                scored.append((float(match_count), item))
 
         scored.sort(key=lambda x: x[0], reverse=True)
         results = []
-        for score, item in scored[:top_k]:
-            item.score = score / len(keywords) if keywords else 0
-            results.append(item)
+        for s, item in scored[:top_k]:
+            item_copy = copy.copy(item)
+            item_copy.score = s / len(keywords) if keywords else 0.0
+            results.append(item_copy)
         return results
 
     async def clear(self) -> None:

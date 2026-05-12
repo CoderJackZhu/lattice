@@ -14,10 +14,12 @@ from lattice.agent.types import (
 )
 from lattice.llm.types import (
     Message,
+    ModelResponse,
     StreamEnd,
     TextContent,
     ToolCall,
     ToolResult,
+    Usage,
 )
 from lattice.planner.base import Plan, PlanContext, Planner
 from lattice.tool.tool import ToolContext
@@ -68,7 +70,7 @@ async def _execute_tool_calls(
     return results
 
 
-async def _call_llm_and_parse(ctx: AgentContext) -> tuple[Message | None, list[ToolCall]]:
+async def _call_llm_and_parse(ctx: AgentContext) -> tuple[Message | None, list[ToolCall], Usage]:
     assert ctx.stream_fn is not None
     response = None
     async for event in ctx.stream_fn(
@@ -81,35 +83,38 @@ async def _call_llm_and_parse(ctx: AgentContext) -> tuple[Message | None, list[T
             response = event.response
 
     if response is None:
-        return None, []
+        return None, [], Usage()
 
     assistant_msg = response.message
     tool_calls = [c for c in assistant_msg.content if isinstance(c, ToolCall)]
-    return assistant_msg, tool_calls
+    return assistant_msg, tool_calls, response.usage
 
 
 class ReActStrategy:
     async def step(self, ctx: AgentContext) -> StepResult:
-        assistant_msg, tool_calls = await _call_llm_and_parse(ctx)
+        assistant_msg, tool_calls, usage = await _call_llm_and_parse(ctx)
 
         if assistant_msg is None:
-            return StepResult(messages=[], action=Finish(output="Error: no response from LLM"))
+            return StepResult(messages=[], action=Finish(output="Error: no response from LLM"), usage=usage)
 
         if not tool_calls:
             text = "".join(
                 c.text for c in assistant_msg.content if isinstance(c, TextContent)
             )
-            return StepResult(messages=[assistant_msg], action=Finish(output=text))
+            return StepResult(messages=[assistant_msg], action=Finish(output=text), usage=usage)
 
         tool_results = await _execute_tool_calls(tool_calls, ctx)
         tool_msg = Message(role="tool", content=tool_results)  # type: ignore[arg-type]
-        return StepResult(messages=[assistant_msg, tool_msg], action=Continue())
+        return StepResult(messages=[assistant_msg, tool_msg], action=Continue(), usage=usage)
 
 
 class PlanAndExecuteStrategy:
     def __init__(self, planner: Planner) -> None:
         self._planner = planner
         self._plan: Plan | None = None
+
+    def reset(self) -> None:
+        self._plan = None
 
     async def step(self, ctx: AgentContext) -> StepResult:
         if self._plan is None:
@@ -165,13 +170,13 @@ class PlanAndExecuteStrategy:
             stream_fn=ctx.stream_fn,
         )
 
-        assistant_msg, tool_calls = await _call_llm_and_parse(step_ctx)
+        assistant_msg, tool_calls, usage = await _call_llm_and_parse(step_ctx)
 
         new_messages: list[Message] = []
         if assistant_msg is None:
             current_step.status = "failed"
             current_step.result = "No response from LLM"
-            return StepResult(messages=[], action=Continue())
+            return StepResult(messages=[], action=Continue(), usage=usage)
 
         new_messages.append(assistant_msg)
 
@@ -191,7 +196,7 @@ class PlanAndExecuteStrategy:
         current_step.status = "done"
         current_step.result = result_text[:500]
 
-        return StepResult(messages=new_messages, action=Continue())
+        return StepResult(messages=new_messages, action=Continue(), usage=usage)
 
     def _extract_goal(self, messages: list[Message]) -> str:
         for msg in messages:
@@ -225,6 +230,10 @@ class ReflexionStrategy:
         self._react = ReActStrategy()
         self._reflection_count = 0
         self._goal: str | None = None
+
+    def reset(self) -> None:
+        self._reflection_count = 0
+        self._goal = None
 
     async def step(self, ctx: AgentContext) -> StepResult:
         result = await self._react.step(ctx)

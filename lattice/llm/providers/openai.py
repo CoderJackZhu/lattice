@@ -19,6 +19,7 @@ from lattice.llm.types import (
     TextContent,
     TextDelta,
     ThinkingContent,
+    ThinkingDelta,
     ToolCall,
     ToolCallDelta,
     ToolCallEnd,
@@ -54,12 +55,13 @@ def _to_openai_messages(
 
         elif msg.role == "assistant":
             text_parts = []
+            thinking_parts = []
             tool_calls_out = []
             for c in msg.content:
                 if isinstance(c, TextContent):
                     text_parts.append(c.text)
                 elif isinstance(c, ThinkingContent):
-                    pass
+                    thinking_parts.append(c.text)
                 elif isinstance(c, ToolCall):
                     tool_calls_out.append({
                         "id": c.id,
@@ -75,6 +77,8 @@ def _to_openai_messages(
                 entry["content"] = content_text
             else:
                 entry["content"] = None
+            if thinking_parts:
+                entry["reasoning_content"] = "".join(thinking_parts)
             if tool_calls_out:
                 entry["tool_calls"] = tool_calls_out
             result.append(entry)
@@ -154,6 +158,7 @@ class OpenAIProvider:
         yield StreamStart(model=model)
 
         text_acc = ""
+        reasoning_acc = ""
         tool_calls_acc: dict[int, dict[str, Any]] = {}
         usage = Usage()
         stop_reason = ""
@@ -181,6 +186,11 @@ class OpenAIProvider:
                 if delta.content:
                     text_acc += delta.content
                     yield TextDelta(text=delta.content)
+
+                reasoning_content = getattr(delta, "reasoning_content", None)
+                if reasoning_content:
+                    reasoning_acc += reasoning_content
+                    yield ThinkingDelta(text=reasoning_content)
 
                 if delta.tool_calls:
                     for tc_delta in delta.tool_calls:
@@ -219,6 +229,8 @@ class OpenAIProvider:
 
         # Build final message
         content_list: list[Any] = []
+        if reasoning_acc:
+            content_list.append(ThinkingContent(text=reasoning_acc))
         if text_acc:
             content_list.append(TextContent(text=text_acc))
         content_list.extend(parsed_tool_calls)

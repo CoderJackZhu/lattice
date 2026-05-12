@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 
 from lattice.memory.base import Memory, MemoryItem
 
@@ -22,8 +23,9 @@ class CompositeMemory:
         all_items: list[MemoryItem] = []
         for (_, weight), items in zip(self._memories, results_per_source):
             for item in items:
-                item.score *= weight
-                all_items.append(item)
+                item_copy = copy.copy(item)
+                item_copy.score *= weight
+                all_items.append(item_copy)
 
         all_items.sort(key=lambda x: x.score, reverse=True)
         return all_items[:top_k]

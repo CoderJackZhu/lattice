@@ -22,10 +22,10 @@ class Plan:
     steps: list[PlanStep] = field(default_factory=list)
 
     def ready_steps(self) -> list[PlanStep]:
-        done_ids = {s.id for s in self.steps if s.status == "done"}
+        resolved_ids = {s.id for s in self.steps if s.status in ("done", "failed", "skipped")}
         return [
             s for s in self.steps
-            if s.status == "pending" and all(d in done_ids for d in s.dependencies)
+            if s.status == "pending" and all(d in resolved_ids for d in s.dependencies)
         ]
 
 
