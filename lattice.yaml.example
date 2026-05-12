@@ -1,0 +1,10 @@
+models:
+  default: "openai:gpt-4o-mini"
+  reasoning: "anthropic:claude-sonnet-4-6"
+  fast: "openai:gpt-4o-mini"
+
+providers:
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+  anthropic:
+    api_key: "${ANTHROPIC_API_KEY}"
