@@ -10,3 +10,4 @@ from lattice.tool.middleware import (
 )
 from lattice.tool.builtins.shell import shell
 from lattice.tool.builtins.file import list_dir, read_file, write_file
+from lattice.tool.builtins.web import http_get, http_post
