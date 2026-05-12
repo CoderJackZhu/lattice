@@ -7,7 +7,7 @@ from lattice.eval import Contains, EvalCase, EvalRunner, ExactMatch
 async def main():
     agent = Agent(
         name="math_agent",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt="你是一个数学助手。只回答数字结果，不要解释。",
     )
 

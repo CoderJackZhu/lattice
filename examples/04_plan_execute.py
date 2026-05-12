@@ -8,11 +8,11 @@ from lattice.tool.builtins.shell import shell
 
 
 async def main():
-    planner = LLMPlanner(model="openai:gpt-4o-mini")
+    planner = LLMPlanner(model="deepseek:deepseek-v4-pro")
 
     agent = Agent(
         name="planner_demo",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt="你是一个擅长规划和执行的编程助手。",
         tools=[shell, read_file, write_file, list_dir],
         strategy=PlanAndExecuteStrategy(planner=planner),

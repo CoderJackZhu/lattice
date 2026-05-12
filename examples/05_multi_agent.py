@@ -7,13 +7,13 @@ from lattice.orchestrator import Pipeline, Supervisor
 async def main():
     researcher = Agent(
         name="researcher",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt="你是一个研究员，负责收集和总结信息。",
     )
 
     writer = Agent(
         name="writer",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt="你是一个技术作家，将研究内容写成清晰的报告。",
     )
 
@@ -25,19 +25,19 @@ async def main():
     print("\n=== Supervisor: 协调多个 worker ===")
     coder = Agent(
         name="coder",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt="你是一个 Python 程序员。回复简洁的代码。",
     )
 
     reviewer = Agent(
         name="reviewer",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt="你是一个代码审查员。检查代码质量并给出建议。",
     )
 
     coordinator = Agent(
         name="coordinator",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt=(
             "你是一个项目协调员。使用 delegate_task 工具将任务分配给 worker。"
             "先让 coder 写代码，再让 reviewer 审查。最后总结结果。"

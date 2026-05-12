@@ -36,7 +36,7 @@ class Contains:
 
 
 class LLMJudge:
-    def __init__(self, model: str = "openai:gpt-4o-mini", threshold: float = 0.7) -> None:
+    def __init__(self, model: str = "deepseek:deepseek-v4-pro", threshold: float = 0.7) -> None:
         self._model = model
         self._threshold = threshold
 

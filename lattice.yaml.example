@@ -1,9 +1,11 @@
 models:
-  default: "openai:gpt-4o-mini"
+  default: "deepseek:deepseek-v4-pro"
   reasoning: "anthropic:claude-sonnet-4-6"
-  fast: "openai:gpt-4o-mini"
+  fast: "deepseek:deepseek-v4-pro"
 
 providers:
+  deepseek:
+    api_key: "${DEEPSEEK_API_KEY}"
   openai:
     api_key: "${OPENAI_API_KEY}"
   anthropic:

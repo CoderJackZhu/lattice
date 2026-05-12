@@ -8,7 +8,7 @@ from lattice.tool.builtins.file import list_dir, read_file
 async def main():
     agent = Agent(
         name="assistant",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt="你是一个有用的编程助手。",
         tools=[shell, read_file, list_dir],
     )

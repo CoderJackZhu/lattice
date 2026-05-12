@@ -13,7 +13,7 @@ async def main():
 
     agent = Agent(
         name="memory_demo",
-        model="openai:gpt-4o-mini",
+        model="deepseek:deepseek-v4-pro",
         system_prompt="你是一个有记忆能力的助手。",
         tools=[shell],
         memory=memory,

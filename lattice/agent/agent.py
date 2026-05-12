@@ -24,7 +24,7 @@ class Agent:
         self,
         name: str,
         *,
-        model: str = "openai:gpt-4o-mini",
+        model: str = "deepseek:deepseek-v4-pro",
         system_prompt: str | Callable[[], str] = "",
         tools: list[Tool] | None = None,
         strategy: Strategy | None = None,

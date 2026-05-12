@@ -43,7 +43,7 @@ def _extract_json_array(text: str) -> list[dict]:
 
 
 class LLMPlanner:
-    def __init__(self, model: str = "openai:gpt-4o-mini", plan_prompt: str = DEFAULT_PLAN_PROMPT) -> None:
+    def __init__(self, model: str = "deepseek:deepseek-v4-pro", plan_prompt: str = DEFAULT_PLAN_PROMPT) -> None:
         self._model = model
         self._plan_prompt = plan_prompt
         self._provider, self._model_name = registry.from_model_id(model)
