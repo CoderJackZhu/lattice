@@ -25,6 +25,8 @@ class ChromaVectorStore:
         self._collection = self._client.get_or_create_collection(collection_name)
 
     async def add(self, texts: list[str], metadatas: list[dict[str, Any]]) -> list[str]:
+        if len(texts) != len(metadatas):
+            raise ValueError("texts and metadatas must have the same length")
         ids = [uuid.uuid4().hex for _ in texts]
         await asyncio.to_thread(
             self._collection.add,

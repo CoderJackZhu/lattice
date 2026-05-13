@@ -42,6 +42,7 @@ class Agent:
         self.max_tokens_per_step = max_tokens_per_step
         self._messages: list[Message] = []
         self._started = False
+        self._step_count = 0
         self._memory_context: list[Any] = []
         self._provider, self._model_name = registry.from_model_id(model)
 
@@ -56,6 +57,7 @@ class Agent:
 
     async def start(self, input: str | Message) -> None:
         self._messages = []
+        self._step_count = 0
         self._memory_context = []
         self._started = True
 
@@ -85,13 +87,15 @@ class Agent:
             model=self._model_name,
             system_prompt=self._get_system_prompt(),
             memory_context=self._memory_context,
-            step_count=0,
+            step_count=self._step_count,
             max_steps=self.max_steps,
+            max_tokens_per_step=self.max_tokens_per_step,
             stream_fn=self._provider.stream,
         )
 
         result = await self.strategy.step(ctx)
         self._messages.extend(result.messages)
+        self._step_count += 1
         return result
 
     async def run(self, input: str | Message) -> AgentResult:
@@ -156,5 +160,6 @@ class Agent:
         new._messages = []
         new._memory_context = []
         new._started = False
+        new._step_count = 0
         new.strategy = copy.deepcopy(self.strategy)
         return new

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, get_type_hints
 
 from pydantic import BaseModel, create_model
 
@@ -32,14 +32,18 @@ class Tool:
         description: str,
         parameters: type[BaseModel],
         execute_fn: Callable[..., Any],
+        context_param: str | None = None,
     ) -> None:
         self.name = name
         self.description = description
         self.parameters = parameters
         self._execute_fn = execute_fn
+        self._context_param = context_param
 
     async def execute(self, params: BaseModel, ctx: ToolContext) -> ToolOutput:
         kwargs = params.model_dump()
+        if self._context_param:
+            kwargs[self._context_param] = ctx
         result = self._execute_fn(**kwargs)
         if inspect.isawaitable(result):
             result = await result
@@ -60,18 +64,25 @@ class Tool:
 def tool(fn: Callable[..., Any] | None = None, *, description: str | None = None) -> Any:
     def decorator(func: Callable[..., Any]) -> Tool:
         sig = inspect.signature(func)
-        hints = {}
+        hints: dict[str, Any] = {}
         try:
-            hints = func.__annotations__.copy()
-        except AttributeError:
+            hints = get_type_hints(func)
+        except (NameError, TypeError, AttributeError):
+            hints = getattr(func, "__annotations__", {}).copy()
             pass
         hints.pop("return", None)
 
         fields: dict[str, Any] = {}
+        context_param: str | None = None
         for param_name, param in sig.parameters.items():
             if param_name in ("self", "cls"):
                 continue
             annotation = hints.get(param_name, str)
+            if annotation is ToolContext:
+                if context_param is not None:
+                    raise ValueError("Tools may only accept one ToolContext parameter")
+                context_param = param_name
+                continue
             if param.default is inspect.Parameter.empty:
                 fields[param_name] = (annotation, ...)
             else:
@@ -87,6 +98,7 @@ def tool(fn: Callable[..., Any] | None = None, *, description: str | None = None
             description=tool_desc,
             parameters=params_model,
             execute_fn=func,
+            context_param=context_param,
         )
 
     if fn is not None:

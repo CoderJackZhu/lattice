@@ -27,6 +27,7 @@ class MockProvider:
     def __init__(self, responses: list[list[StreamEvent]] | None = None) -> None:
         self._responses = responses or []
         self._call_count = 0
+        self.calls: list[dict[str, Any]] = []
 
     async def stream(
         self,
@@ -40,6 +41,13 @@ class MockProvider:
         stop: Any = None,
         response_format: Any = None,
     ) -> AsyncIterator[StreamEvent]:
+        self.calls.append({
+            "model": model,
+            "messages": messages,
+            "system": system,
+            "tools": tools,
+            "max_tokens": max_tokens,
+        })
         if self._call_count < len(self._responses):
             events = self._responses[self._call_count]
         else:
@@ -169,3 +177,34 @@ async def test_agent_start_step():
     step = await agent.step()
     assert isinstance(step.action, Finish)
     assert step.action.output == "response"
+
+
+async def test_agent_passes_step_count_and_token_limit_to_strategy():
+    provider = MockProvider(responses=[_text_events("response")])
+    registry._instances["mock"] = provider
+
+    seen_step_counts: list[int] = []
+
+    class RecordingStrategy:
+        async def step(self, ctx) -> StepResult:
+            seen_step_counts.append(ctx.step_count)
+            async for event in ctx.stream_fn(
+                ctx.model,
+                ctx.messages,
+                max_tokens=ctx.max_tokens_per_step,
+            ):
+                if isinstance(event, StreamEnd):
+                    return StepResult(messages=[event.response.message], action=Finish("done"))
+            return StepResult(action=Finish("done"))
+
+    agent = Agent(
+        name="test",
+        model="mock:test-model",
+        strategy=RecordingStrategy(),
+        max_tokens_per_step=123,
+    )
+    await agent.start("hello")
+    await agent.step()
+
+    assert seen_step_counts == [0]
+    assert provider.calls[0]["max_tokens"] == 123

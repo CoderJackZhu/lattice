@@ -78,6 +78,7 @@ async def _call_llm_and_parse(ctx: AgentContext) -> tuple[Message | None, list[T
         ctx.messages,
         system=ctx.system_prompt or None,
         tools=[t.to_schema() for t in ctx.tools] if ctx.tools else None,
+        max_tokens=ctx.max_tokens_per_step,
     ):
         if isinstance(event, StreamEnd):
             response = event.response
@@ -167,6 +168,7 @@ class PlanAndExecuteStrategy:
             memory_context=ctx.memory_context,
             step_count=ctx.step_count,
             max_steps=ctx.max_steps,
+            max_tokens_per_step=ctx.max_tokens_per_step,
             stream_fn=ctx.stream_fn,
         )
 
@@ -188,12 +190,14 @@ class PlanAndExecuteStrategy:
                 r.content if isinstance(r.content, str) else str(r.content)
                 for r in tool_results
             )
+            has_tool_error = any(r.is_error for r in tool_results)
         else:
             result_text = "".join(
                 c.text for c in assistant_msg.content if isinstance(c, TextContent)
             )
+            has_tool_error = False
 
-        current_step.status = "done"
+        current_step.status = "failed" if has_tool_error else "done"
         current_step.result = result_text[:500]
 
         return StepResult(messages=new_messages, action=Continue(), usage=usage)

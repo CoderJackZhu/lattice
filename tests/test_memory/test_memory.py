@@ -71,6 +71,8 @@ def test_cosine_similarity():
     assert _cosine_similarity([1, 0, 0], [1, 0, 0]) == pytest.approx(1.0)
     assert _cosine_similarity([1, 0, 0], [0, 1, 0]) == pytest.approx(0.0)
     assert _cosine_similarity([0, 0, 0], [1, 0, 0]) == pytest.approx(0.0)
+    with pytest.raises(ValueError):
+        _cosine_similarity([1, 0], [1])
 
 
 async def test_vector_store_add_search():
@@ -96,6 +98,21 @@ async def test_vector_store_empty_search():
     store = InMemoryVectorStore(embedding_fn=_mock_embedding)
     results = await store.search("query")
     assert results == []
+
+
+async def test_vector_store_rejects_mismatched_input_lengths():
+    store = InMemoryVectorStore(embedding_fn=_mock_embedding)
+    with pytest.raises(ValueError):
+        await store.add(["doc1", "doc2"], [{}])
+
+
+async def test_vector_store_rejects_embedding_count_mismatch():
+    async def bad_embedding(texts: list[str]) -> list[list[float]]:
+        return [[1.0]]
+
+    store = InMemoryVectorStore(embedding_fn=bad_embedding)
+    with pytest.raises(ValueError):
+        await store.add(["doc1", "doc2"], [{}, {}])
 
 
 # --- EpisodicMemory ---
@@ -149,6 +166,16 @@ async def test_semantic_memory():
     results = await mem.retrieve("auth docs", top_k=5)
     assert len(results) == 1
     assert results[0].source == "semantic"
+
+
+async def test_semantic_memory_clear_removes_stored_items():
+    store = InMemoryVectorStore(embedding_fn=_mock_embedding)
+    mem = SemanticMemory(backend=store)
+
+    await mem.store(MemoryItem(content="API documentation for auth"))
+    await mem.clear()
+
+    assert await mem.retrieve("auth docs", top_k=5) == []
 
 
 # --- CompositeMemory ---

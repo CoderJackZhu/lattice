@@ -17,6 +17,7 @@ class AgentContext:
     memory_context: list[Any] = field(default_factory=list)
     step_count: int = 0
     max_steps: int = 50
+    max_tokens_per_step: int = 4096
     stream_fn: Callable[..., AsyncIterator[StreamEvent]] | None = None
 
 

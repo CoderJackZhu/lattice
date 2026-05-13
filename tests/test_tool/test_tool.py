@@ -71,6 +71,19 @@ async def test_tool_execute_sync_function():
     assert result.content == "7"
 
 
+async def test_tool_execute_injects_context_without_schema_param():
+    @tool(description="context aware")
+    async def context_tool(value: str, ctx: ToolContext) -> str:
+        return f"{value}:{ctx.tool_call_id}"
+
+    schema = context_tool.to_schema()
+    assert "ctx" not in schema.parameters["properties"]
+
+    params = context_tool.parameters(value="seen")
+    result = await context_tool.execute(params, ToolContext(tool_call_id="tc_123"))
+    assert result.content == "seen:tc_123"
+
+
 async def test_shell_tool():
     assert shell.name == "shell"
     params = shell.parameters(command="echo hello")

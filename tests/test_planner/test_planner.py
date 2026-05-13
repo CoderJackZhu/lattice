@@ -100,6 +100,14 @@ def test_plan_ready_steps_none_ready():
     assert plan.ready_steps() == []
 
 
+def test_plan_failed_dependency_is_not_ready():
+    plan = Plan(goal="test", steps=[
+        PlanStep(id="s1", description="first", status="failed"),
+        PlanStep(id="s2", description="second", dependencies=["s1"]),
+    ])
+    assert plan.ready_steps() == []
+
+
 # --- StaticPlanner tests ---
 
 async def test_static_planner():

@@ -9,6 +9,7 @@ from lattice.memory.stores.in_memory import VectorStore
 class SemanticMemory:
     def __init__(self, backend: VectorStore) -> None:
         self._backend = backend
+        self._ids: list[str] = []
 
     async def store(self, item: MemoryItem) -> None:
         metadata = {
@@ -16,7 +17,8 @@ class SemanticMemory:
             "source": "semantic",
             "timestamp": item.timestamp or time.time(),
         }
-        await self._backend.add([item.content], [metadata])
+        ids = await self._backend.add([item.content], [metadata])
+        self._ids.extend(ids)
 
     async def retrieve(self, query: str, top_k: int = 5) -> list[MemoryItem]:
         results = await self._backend.search(query, top_k)
@@ -31,4 +33,6 @@ class SemanticMemory:
         ]
 
     async def clear(self) -> None:
-        pass
+        if self._ids:
+            await self._backend.delete(self._ids)
+            self._ids.clear()
